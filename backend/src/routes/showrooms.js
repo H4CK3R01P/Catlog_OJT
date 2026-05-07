@@ -51,13 +51,23 @@ router.post('/', async (req, res, next) => {
 
 router.put('/:id', async (req, res, next) => {
     try {
-        const { name, slug, description, status, coverImage, settings } = req.body
+        const { name, slug, description, status, coverImage, settings, sections, items, themeColor } = req.body
         const existing = await prisma.showroom.findUnique({ where: { id: req.params.id } })
         if (!existing) return res.status(404).json({ error: 'Showroom not found' })
 
         const showroom = await prisma.showroom.update({
             where: { id: req.params.id },
-            data: { ...(name && { name }), ...(slug && { slug }), ...(description !== undefined && { description }), ...(status && { status }), ...(coverImage !== undefined && { coverImage }), ...(settings && { settings }) }
+            data: {
+                ...(name && { name }), 
+                ...(slug && { slug }), 
+                ...(description !== undefined && { description }), 
+                ...(status && { status }), 
+                ...(coverImage !== undefined && { coverImage }), 
+                ...(themeColor !== undefined && { themeColor }),
+                ...(settings && { settings }),
+                ...(sections && { sections }),
+                ...(items && { items })
+            }
         })
         res.json(showroom)
     } catch (err) { next(err) }

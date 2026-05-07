@@ -62,7 +62,7 @@ router.get('/', async (req, res, next) => {
                     ]
                 })
             },
-            include: { items: true, history: { orderBy: { at: 'asc' } }, customer: true, assignedTo: { select: { id: true, name: true } } },
+            include: { items: true, history: { orderBy: { at: 'asc' } }, customer: true, assignedTo: { select: { id: true, name: true } }, createdBy: { select: { name: true, brandName: true, email: true, phone: true } } },
             orderBy: { updatedAt: 'desc' }
         })
         quotes = await Promise.all(quotes.map(autoExpire))
@@ -88,11 +88,11 @@ router.get('/:id', async (req, res, next) => {
 // POST /api/quotes
 router.post('/', async (req, res, next) => {
     try {
-        let { buyer, buyerName, buyerEmail, buyerCompany, buyerPhone, buyerCountry, source, items = [], currency, expiryDate, assignedToId, customerId, internalNotes } = req.body
+        let { buyer, buyerName, buyerEmail, buyerCompany, buyerPhone, buyerCountry, buyerAddress, source, items = [], currency, expiryDate, assignedToId, customerId, internalNotes } = req.body
         
         // Handle payload from Buyer Portal
         if (!buyer && buyerName && buyerEmail) {
-            buyer = { name: buyerName, email: buyerEmail, company: buyerCompany, phone: buyerPhone, country: buyerCountry }
+            buyer = { name: buyerName, email: buyerEmail, company: buyerCompany, phone: buyerPhone, country: buyerCountry, address: buyerAddress }
         }
         
         if (!buyer?.name || !buyer?.email) return res.status(400).json({ error: 'buyer.name and buyer.email required' })
@@ -110,7 +110,7 @@ router.post('/', async (req, res, next) => {
         const quote = await prisma.quote.create({
             data: {
                 buyerName: buyer.name, buyerCompany: buyer.company || '', buyerEmail: buyer.email,
-                buyerPhone: buyer.phone, buyerCountry: buyer.country,
+                buyerPhone: buyer.phone, buyerCountry: buyer.country, buyerAddress: buyer.address || buyerAddress,
                 source: source || (isBuyer ? 'Buyer Portal' : 'Sales'), currency: currency || 'USD',
                 expiryDate: expiryDate ? new Date(expiryDate) : new Date(Date.now() + 14 * 86400000),
                 assignedToId, customerId, internalNotes,

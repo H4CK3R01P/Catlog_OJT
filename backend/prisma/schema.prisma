@@ -201,6 +201,7 @@ model Quote {
   buyerEmail    String
   buyerPhone    String?
   buyerCountry  String?
+  buyerAddress  String?
   source        String         @default("Sales")
   showroomId    String?
   currency      String         @default("USD")
@@ -274,7 +275,10 @@ model Showroom {
   description String?
   status      String     @default("Draft")
   coverImage  String?
+  themeColor  String?
   settings    Json       @default("{}")
+  sections    Json       @default("[]")
+  items       Json       @default("[]")
   createdById String?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt

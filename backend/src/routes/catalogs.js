@@ -82,21 +82,20 @@ router.delete('/:id', async (req, res, next) => {
 router.get('/:id/pdf', async (req, res, next) => {
     try {
         const catalog = await prisma.catalog.findUnique({
-            where: { id: req.params.id },
-            include: { products: { include: { product: { include: { media: { take: 1 } } } } } }
+            where: { id: req.params.id }
         })
         const isBuyer = req.user.role === 'VIEWER'
         if (!catalog) return res.status(404).json({ error: 'Catalog not found' })
         if (isBuyer && !['Published', 'Approved'].includes(catalog.status)) return res.status(404).json({ error: 'Catalog not available' })
 
-        const items = catalog.products || []
+        const items = Array.isArray(catalog.items) ? catalog.items : []
         const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
             body { font-family: -apple-system, sans-serif; color: #2c2420; margin: 0; }
             .cover { background: #2c2420; color: white; padding: 60px 48px; min-height: 200px; }
             .cover h1 { font-size: 36px; margin: 0 0 8px; }
             .cover p { opacity: 0.7; margin: 0; }
             .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 48px; }
-            .product { border: 1px solid #e8e2da; border-radius: 12px; overflow: hidden; }
+            .product { border: 1px solid #e8e2da; border-radius: 12px; overflow: hidden; page-break-inside: avoid; break-inside: avoid; }
             .product img { width: 100%; height: 180px; object-fit: cover; background: #f5f5f5; }
             .product-info { padding: 16px; }
             .product-info h3 { margin: 0 0 4px; font-size: 14px; }
@@ -108,9 +107,8 @@ router.get('/:id/pdf', async (req, res, next) => {
                 <p>${catalog.description || ''} • ${catalog.type} • ${catalog.audience}</p>
             </div>
             <div class="grid">
-                ${items.slice(0, 20).map(ci => {
-                    const p = ci.product || ci
-                    const imgUrl = p.media?.[0]?.url || p.imageUrl || ''
+                ${items.slice(0, 50).map(p => {
+                    const imgUrl = p.image || p.imageUrl || ''
                     return `<div class="product">
                         ${imgUrl ? `<img src="${imgUrl}" alt="${p.name}" />` : '<div style="height:180px;background:#f5f5f5"></div>'}
                         <div class="product-info">
