@@ -44,6 +44,7 @@ function timeAgo(dateStr) {
 
 export function OrdersPage() {
   const user = useAuthStore(s => s.user)
+  const isBuyer = user?.role?.toUpperCase() === 'VIEWER'
   const qc = useQueryClient()
   const [activeTab, setActiveTab] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
@@ -75,8 +76,13 @@ export function OrdersPage() {
       buyerName: q.buyerName || q.buyer?.name || '—',
       company: q.buyerCompany || q.buyer?.company || '—',
       email: q.buyerEmail || q.buyer?.email || '',
+      phone: q.buyerPhone || q.buyer?.phone || '',
+      address: q.buyerAddress || q.buyer?.address || '',
+      sellerName: q.createdBy?.brandName || q.createdBy?.name || 'MerchFlow Seller',
+      sellerEmail: q.createdBy?.email || '',
+      sellerPhone: q.createdBy?.phone || '',
       source: q.source || 'Direct',
-      type: q.status === 'CONVERTED_TO_ORDER' ? 'Order' : 'Quote',
+      type: (q.status === 'CONVERTED_TO_ORDER' || q.status === 'Converted to Order') ? 'Order' : 'Quote',
       amount: q.totals?.total ?? q.total,
       status: q.status,
       assignedTo: q.assignedTo?.name || 'Unassigned',
@@ -98,19 +104,38 @@ export function OrdersPage() {
     })
   }, [allRequests, activeTab, searchQuery])
 
+  const convertedOrdersCount = allRequests.filter(r => r.type === 'Order').length
+  const pendingQuotesCount = allRequests.filter(r => r.type === 'Quote').length
+
   const STATS = [
-    { label: 'Total Pipeline', value: summary.total ?? allRequests.length },
-    { label: 'Converted Orders', value: summary.newOrders ?? orders.length },
-    { label: 'Pending Quotes', value: summary.pendingQuotes ?? '—' },
-    { label: 'Sample Requests', value: summary.sampleRequests ?? 0 },
+    { label: 'Total Pipeline', value: allRequests.length },
+    { label: 'Converted Orders', value: convertedOrdersCount },
+    { label: 'Pending Quotes', value: pendingQuotesCount },
+    { label: 'Sample Requests', value: 0 },
     { label: 'Revenue Potential', value: summary.revenuePotential ? `$${(summary.revenuePotential / 1000).toFixed(0)}K` : '—', positive: true },
     { label: 'Avg Ticket', value: allRequests.length ? `$${Math.round((summary.revenuePotential || 0) / Math.max(allRequests.length, 1)).toLocaleString()}` : '—' },
   ]
 
-  // Status update mutation via quotes PATCH
   const updateStatusM = useMutation({
     mutationFn: ({ id, status }) => api.patch(`/quotes/${id}`, { status }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['quotes'] }); qc.invalidateQueries({ queryKey: ['orders'] }); toast.success('Status updated') }
+    onMutate: async ({ id, status }) => {
+      await qc.cancelQueries({ queryKey: ['quotes'] })
+      const previousQuotes = qc.getQueryData(['quotes'])
+      qc.setQueryData(['quotes'], old => {
+        if (!Array.isArray(old)) return old
+        return old.map(q => q.id === id ? { ...q, status } : q)
+      })
+      return { previousQuotes }
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousQuotes) qc.setQueryData(['quotes'], context.previousQuotes)
+      toast.error('Failed to update status')
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['quotes'] })
+      qc.invalidateQueries({ queryKey: ['orders'] })
+    },
+    onSuccess: () => { toast.success('Status updated') }
   })
 
   const deleteM = useMutation({
@@ -125,7 +150,9 @@ export function OrdersPage() {
 
   const handleUpdateStatus = (req, status) => {
     updateStatusM.mutate({ id: req._id, status })
-    if (selectedReq?._id === req._id) setSelectedReq(r => ({ ...r, status }))
+    if (selectedReq?._id === req._id) {
+      setSelectedReq(r => ({ ...r, status, type: status === 'CONVERTED_TO_ORDER' ? 'Order' : 'Quote' }))
+    }
   }
 
   return (
@@ -271,6 +298,7 @@ export function OrdersPage() {
 
             <div className="flex-1 overflow-y-auto bg-gray-50/50 p-8 space-y-8">
               {/* Status pipeline */}
+              {!isBuyer && (
               <div className="p-4 bg-white border rounded-xl shadow-sm space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Update Status</span>
@@ -285,16 +313,27 @@ export function OrdersPage() {
                   ))}
                 </div>
               </div>
+              )}
 
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center"><User size={12} className="mr-1.5" /> Buyer Profile</h4>
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center"><User size={12} className="mr-1.5" /> {isBuyer ? 'Seller Profile' : 'Buyer Profile'}</h4>
                   <div className="bg-white border rounded-lg p-4 shadow-sm text-sm space-y-3">
-                    <div><span className="block text-xs text-gray-400 font-semibold mb-0.5">Name</span><span className="font-bold">{selectedReq.buyerName}</span></div>
-                    <div><span className="block text-xs text-gray-400 font-semibold mb-0.5">Company</span><span className="font-bold">{selectedReq.company || '—'}</span></div>
-                    <div><span className="block text-xs text-gray-400 font-semibold mb-0.5">Email</span>
-                      {selectedReq.email ? <a href={`mailto:${selectedReq.email}`} className="font-mono text-brand hover:underline">{selectedReq.email}</a> : '—'}
-                    </div>
+                    {isBuyer ? (
+                      <>
+                        <div><span className="block text-xs text-gray-400 font-semibold mb-0.5">Company</span><span className="font-bold">{selectedReq.sellerName}</span></div>
+                        {selectedReq.sellerEmail && <div><span className="block text-xs text-gray-400 font-semibold mb-0.5">Email</span><a href={`mailto:${selectedReq.sellerEmail}`} className="font-mono text-brand hover:underline">{selectedReq.sellerEmail}</a></div>}
+                        {selectedReq.sellerPhone && <div><span className="block text-xs text-gray-400 font-semibold mb-0.5">Contact</span><span className="font-mono">{selectedReq.sellerPhone}</span></div>}
+                      </>
+                    ) : (
+                      <>
+                        <div><span className="block text-xs text-gray-400 font-semibold mb-0.5">Name</span><span className="font-bold">{selectedReq.buyerName}</span></div>
+                        <div><span className="block text-xs text-gray-400 font-semibold mb-0.5">Company</span><span className="font-bold">{selectedReq.company || '—'}</span></div>
+                        {selectedReq.email && <div><span className="block text-xs text-gray-400 font-semibold mb-0.5">Email</span><a href={`mailto:${selectedReq.email}`} className="font-mono text-brand hover:underline">{selectedReq.email}</a></div>}
+                        {selectedReq.phone && <div><span className="block text-xs text-gray-400 font-semibold mb-0.5">Contact No.</span><span className="font-mono">{selectedReq.phone}</span></div>}
+                        {selectedReq.address && <div><span className="block text-xs text-gray-400 font-semibold mb-0.5">Address</span><span className="text-gray-700">{selectedReq.address}</span></div>}
+                      </>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -368,7 +407,7 @@ export function OrdersPage() {
 
             <div className="p-5 border-t bg-white flex justify-between shrink-0">
               <Button variant="outline" className="text-red-500 hover:bg-red-50 font-bold text-xs" onClick={() => { if (confirm('Delete?')) deleteM.mutate(selectedReq._id) }}>Delete</Button>
-              {selectedReq.type === 'Quote' && (
+              {!isBuyer && selectedReq.type === 'Quote' && (
                 <Button className="bg-brand font-bold shadow-md" onClick={() => handleUpdateStatus(selectedReq, 'CONVERTED_TO_ORDER')}>
                   <CheckCircle2 size={14} className="mr-1.5" /> Convert to Order
                 </Button>

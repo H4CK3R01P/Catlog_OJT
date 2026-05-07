@@ -73,7 +73,7 @@ export function Sidebar() {
 
   const allowed = NAV_ITEMS.filter(i => {
     if (userRole === 'VIEWER') {
-      const allowedForBuyer = ['Dashboard', 'Catalogs', 'Orders', 'Settings', 'Wishlist', 'Products', 'AI Studio', 'Media Library', 'Quotes']
+      const allowedForBuyer = ['Dashboard', 'Catalogs', 'Orders', 'Settings', 'Wishlist', 'AI Studio', 'Media Library']
       return allowedForBuyer.includes(i.label)
     }
     
