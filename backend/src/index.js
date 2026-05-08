@@ -44,24 +44,30 @@ app.use(compression())
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:5173',
+  process.env.FRONTEND_URL,           // production Amplify URL (set in env vars)
   'http://localhost:5173',
   'http://localhost:3000',
-  'http://localhost:4173', // vite preview
-]
+  'http://localhost:4173',             // vite preview
+].filter(Boolean)
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow server-to-server (no origin) and whitelisted origins
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true)
-    } else if (!isProd) {
-      // In dev, allow any localhost port
-      if (/^http:\/\/localhost:\d+$/.test(origin)) return callback(null, true)
-      callback(new Error(`CORS: ${origin} not allowed`))
-    } else {
-      callback(new Error(`CORS: ${origin} not allowed`))
+    if (!origin) return callback(null, true) // server-to-server / curl
+    // Exact match
+    if (allowedOrigins.includes(origin)) return callback(null, true)
+    // Allow any AWS Amplify app domain
+    if (/^https:\/\/[a-z0-9-]+\.amplifyapp\.com$/.test(origin)) return callback(null, true)
+    // Allow any subdomain of the configured FRONTEND_URL domain
+    if (process.env.FRONTEND_URL) {
+      try {
+        const allowed = new URL(process.env.FRONTEND_URL).hostname
+        const incoming = new URL(origin).hostname
+        if (incoming === allowed || incoming.endsWith('.' + allowed)) return callback(null, true)
+      } catch {}
     }
+    // Dev: allow any localhost
+    if (!isProd && /^http:\/\/localhost:\d+$/.test(origin)) return callback(null, true)
+    callback(new Error(`CORS: ${origin} not allowed`))
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
