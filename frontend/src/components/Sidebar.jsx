@@ -78,7 +78,7 @@ export function Sidebar() {
     }
     
     // Hide completely from Sellers
-    if (i.label === 'Quotes' || i.label === 'Wishlist') {
+    if (i.label === 'Quotes' || i.label === 'Wishlist' || (i.label === 'Inventory' && userRole !== 'VIEWER')) {
       return false
     }
 
