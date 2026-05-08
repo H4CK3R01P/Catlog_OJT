@@ -21,25 +21,47 @@ const BRAND_NAME = process.env.SEED_BRAND_NAME || 'MerchFlow Brand'
 async function main() {
   console.log('🌱 Seeding database...\n')
 
-  // ── Admin User ─────────────────────────────────────────────────────────────
-  const existing = await prisma.user.findUnique({ where: { email: ADMIN_EMAIL } })
-  if (existing) {
-    console.log(`ℹ️  Admin already exists: ${ADMIN_EMAIL}`)
-  } else {
-    const hashed = await bcrypt.hash(ADMIN_PASSWORD, 12)
-    const admin = await prisma.user.create({
+  // ── Seller Account ──────────────────────────────────────────────────────────
+  const sellerEmail = 'snehalrathod15234@gmail.com'
+  const sellerPass = '12345678'
+  const existingSeller = await prisma.user.findUnique({ where: { email: sellerEmail } })
+  
+  if (!existingSeller) {
+    const hashedSeller = await bcrypt.hash(sellerPass, 12)
+    await prisma.user.create({
       data: {
-        name: ADMIN_NAME,
-        email: ADMIN_EMAIL,
-        password: hashed,
+        name: 'Snehal Rathod',
+        email: sellerEmail,
+        password: hashedSeller,
         role: 'ADMIN',
-        brandName: BRAND_NAME,
+        brandName: 'MerchFlow Seller',
         brandColor: '#C47B2B',
-        brandEmail: ADMIN_EMAIL,
+        brandEmail: sellerEmail,
       }
     })
-    console.log(`✅ Admin created: ${admin.email} (role: ADMIN)`)
-    console.log(`   ⚠️  Change the password immediately after first login!\n`)
+    console.log(`✅ Seller created: ${sellerEmail}`)
+  } else {
+    console.log(`ℹ️  Seller already exists: ${sellerEmail}`)
+  }
+
+  // ── Buyer Account ───────────────────────────────────────────────────────────
+  const buyerEmail = 'admin@merchflow.com'
+  const buyerPass = 'Admin@123'
+  const existingBuyer = await prisma.user.findUnique({ where: { email: buyerEmail } })
+  
+  if (!existingBuyer) {
+    const hashedBuyer = await bcrypt.hash(buyerPass, 12)
+    await prisma.user.create({
+      data: {
+        name: 'Buyer Admin',
+        email: buyerEmail,
+        password: hashedBuyer,
+        role: 'VIEWER',
+      }
+    })
+    console.log(`✅ Buyer created: ${buyerEmail}`)
+  } else {
+    console.log(`ℹ️  Buyer already exists: ${buyerEmail}`)
   }
 
   // ── Sample Category ────────────────────────────────────────────────────────
@@ -55,24 +77,15 @@ async function main() {
       ]
     })
     console.log('✅ Default categories created')
-  } else {
-    console.log(`ℹ️  Categories already exist (${catCount})`)
-  }
-
-  // ── Sample Collection ──────────────────────────────────────────────────────
-  const colCount = await prisma.collection.count()
-  if (colCount === 0) {
-    await prisma.collection.create({
-      data: { name: 'Core Basics', description: 'Essential everyday pieces', type: 'Seasonal Drop', status: 'Draft' }
-    })
-    console.log('✅ Sample collection created')
   }
 
   console.log('\n🎉 Seed complete!')
-  console.log(`\n📌 Login credentials:`)
-  console.log(`   Email:    ${ADMIN_EMAIL}`)
-  console.log(`   Password: ${ADMIN_PASSWORD}`)
-  console.log(`\n⚠️  IMPORTANT: Change the admin password immediately after first login.\n`)
+  console.log(`\n📌 Seller Login:`)
+  console.log(`   Email:    ${sellerEmail}`)
+  console.log(`   Password: ${sellerPass}`)
+  console.log(`\n📌 Buyer Login:`)
+  console.log(`   Email:    ${buyerEmail}`)
+  console.log(`   Password: ${buyerPass}\n`)
 }
 
 main()
