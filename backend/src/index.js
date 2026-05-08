@@ -6,6 +6,7 @@ import compression from 'compression'
 import rateLimit from 'express-rate-limit'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import fs from 'fs'
 
 import authRouter from './routes/auth.js'
 import productsRouter from './routes/products.js'
@@ -28,6 +29,12 @@ import publicRouter from './routes/public.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, '../uploads')
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true })
+}
 
 const app = express()
 const PORT = process.env.PORT || 4000
