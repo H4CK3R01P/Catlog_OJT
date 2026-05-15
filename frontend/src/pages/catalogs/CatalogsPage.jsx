@@ -5,9 +5,10 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Plus, Search, LayoutGrid, List, FileText, Image as ImageIcon } from 'lucide-react'
 import { cn } from '../../lib/cn'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { catalogService } from '../../services/catalogService'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 const TABS = [
     { id: 'all', label: 'All Catalogs' },
@@ -19,10 +20,31 @@ const TABS = [
 export function CatalogsPage() {
     const [activeTab, setActiveTab] = useState('all')
 
+    const queryClient = useQueryClient()
+
     const { data: catalogs = [], isLoading } = useQuery({
         queryKey: ['catalogs'],
         queryFn: () => catalogService.getCatalogs()
     })
+
+    const deleteMutation = useMutation({
+        mutationFn: (id) => catalogService.deleteCatalog(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['catalogs'] })
+            toast.success('Catalog deleted')
+        },
+        onError: () => {
+            toast.error('Failed to delete catalog')
+        }
+    })
+
+    const handleDelete = (e, id) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (window.confirm('Are you sure you want to delete this catalog?')) {
+            deleteMutation.mutate(id)
+        }
+    }
 
     const filteredCatalogs = catalogs.filter(c => {
         if (activeTab === 'all') return true
@@ -130,7 +152,14 @@ export function CatalogsPage() {
                                             {catalog.type}
                                         </div>
 
-                                        <div className="absolute top-3 right-3">
+                                        <div className="absolute top-3 right-3 flex items-center gap-2">
+                                            <button
+                                                onClick={(e) => handleDelete(e, catalog.id)}
+                                                className="px-2 py-1 bg-white/90 hover:bg-red-50 text-red-500 rounded-md border border-gray-100 shadow-sm transition-colors"
+                                                title="Delete Catalog"
+                                            >
+                                                <Trash2 size={12} />
+                                            </button>
                                             <span className={cn(
                                                 "px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border",
                                                 catalog.status === 'Published' ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"

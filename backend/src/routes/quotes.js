@@ -47,7 +47,7 @@ router.get('/', async (req, res, next) => {
         const { status, search, archived } = req.query
         const isBuyer = req.user.role === 'VIEWER'
         const baseWhere = isBuyer 
-            ? { archived: archived === 'true', submittedByUserId: req.user.id }
+            ? { archived: archived === 'true', OR: [{ submittedByUserId: req.user.id }, { buyerEmail: req.user.email }] }
             : { archived: archived === 'true', createdById: req.user.id }
 
         let quotes = await prisma.quote.findMany({

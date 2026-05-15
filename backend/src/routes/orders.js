@@ -10,7 +10,7 @@ router.get('/', async (req, res, next) => {
     try {
         const isBuyer = req.user.role === 'VIEWER'
         const baseWhere = isBuyer 
-            ? { status: 'CONVERTED_TO_ORDER', archived: false, submittedByUserId: req.user.id }
+            ? { status: 'CONVERTED_TO_ORDER', archived: false, OR: [{ submittedByUserId: req.user.id }, { buyerEmail: req.user.email }] }
             : { status: 'CONVERTED_TO_ORDER', archived: false, createdById: req.user.id }
 
         const orders = await prisma.quote.findMany({
@@ -32,7 +32,7 @@ router.get('/', async (req, res, next) => {
 
         // Summary stats — always scoped to this user
         const allQuotesWhere = isBuyer 
-            ? { archived: false, submittedByUserId: req.user.id } 
+            ? { archived: false, OR: [{ submittedByUserId: req.user.id }, { buyerEmail: req.user.email }] } 
             : { archived: false, createdById: req.user.id }
         
         const allQuotes = await prisma.quote.findMany({ where: allQuotesWhere, include: { items: true } })
